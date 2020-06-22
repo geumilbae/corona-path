@@ -21,5 +21,5 @@ class TestUnitCrawler:
         bucheon = Bucheon()
         df = bucheon.get_path_data(self.crawler)
         LOGGER.info(f"df: {df}")
-        assert df.shape == (0, 0)
+        assert df.shape == (26, 3)
 
