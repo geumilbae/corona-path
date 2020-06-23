@@ -104,10 +104,10 @@ class Bucheon:
         for soup_dl in list_soup_dl:
             s_row = pd.Series(dtype=object)
             soup_title = soup_dl.find('dt').find('button').find('span')
-            s_row['title'] = soup_title.find('strong').text
-            s_row['date'] = soup_title.find('em').text
+            s_row['summary'] = soup_title.find('strong').text
+            s_row['confirmation_date'] = soup_title.find('em').text
             soup_text = soup_dl.find('dd')
-            s_row['text'] = soup_text.text
+            s_row['routes'] = soup_text.text
             list_s_row.append(s_row)
 
         df = pd.concat(
@@ -115,3 +115,64 @@ class Bucheon:
         )
         return df
 
+
+class Seoul:
+    """이 클래스는 서울시의 확진자 동선 데이터를 크롤링합니다."""
+
+    def __init__(self):
+        self._home_url = "https://www.seoul.go.kr/coronaV/coronaStatus.do"
+
+    @property
+    def home_url(self):
+        return self._home_url
+
+    def get_path_data(self, crawler: SeleniumCrawler):
+        crawler.webdriver.get(self.home_url)
+        time.sleep(1)
+        xpath_list_btn = "//div[@class='move-tab']/ul/li/" + \
+                         "button[@data-url='#move-cont2']"
+        e_btn = try_finding_element_by_xpath(
+            crawler.webdriver, xpath=xpath_list_btn
+        )
+        time.sleep(1)
+        str_html = crawler.webdriver.page_source
+        data_length = crawler.webdriver.execute_script(
+            "return route_table.data().length"
+        )
+        data_length = int(data_length)
+        list_row = []
+        for i in range(data_length):
+            row = crawler.webdriver.execute_script(
+                f"return route_table.data()[{i}];"
+            )
+            LOGGER.debug(f"type of row: {type(row)}")
+            LOGGER.debug(f"contents of row: {row}")
+
+
+        route_table = crawler.webdriver.execute_script("return route_table.data()[0];")
+        LOGGER.info(route_table)
+        df = self._parse_table(str_html)
+        LOGGER.debug(f"table: {df}")
+
+    def _parse_table(self, html):
+        soup = BeautifulSoup(html, 'html5lib')
+        soup_div = soup.find('div', {'id': 'move-cont2'})
+        soup_table = soup_div.find('table', {'id': 'DataTables_Table_0'})
+        soup_body = soup_table.find('tbody')
+        list_soup_tr = soup_body.find_all('tr', {'id': 'patient'})
+        list_soup_td = soup_body.find_all('td', {'class': 'tdl'})
+        list_s_row = []
+        for soup_tr, soup_td in zip(list_soup_tr, list_soup_td):
+            s_row = pd.Series(dtype=object)
+            list_soup_td = soup_tr.find_all('td')
+            s_row['no'] = list_soup_td[0].find('p').text
+            s_row['patient_id'] = list_soup_td[1].text
+            s_row['infection_route'] = list_soup_td[2].text
+            s_row['confirmation_date'] = list_soup_td[3].text
+            s_row['residence'] = list_soup_td[4].text
+            s_row['containment_facility'] = list_soup_td[5].text
+            s_row['routes'] = soup_td.text.strip()
+            list_s_row.append(s_row)
+        df = pd.concat([s_row.to_frame().T for s_row in list_s_row],
+                       ignore_index=True)
+        return df
