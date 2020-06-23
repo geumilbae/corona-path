@@ -24,8 +24,9 @@ class TestUnitCrawler:
         LOGGER.info(f"df: {df}")
         assert df.shape == (26, 3)
 
+    @pytest.mark.skip(reason="tested")
     def test_seoul_get_path_data(self):
         seoul = Seoul()
         df = seoul.get_path_data(self.crawler)
         LOGGER.info(f"df: {df}")
-        assert df.shape == (26, 3)
+        assert df.shape == (1230, 6)

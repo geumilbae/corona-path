@@ -128,51 +128,29 @@ class Seoul:
 
     def get_path_data(self, crawler: SeleniumCrawler):
         crawler.webdriver.get(self.home_url)
-        time.sleep(1)
-        xpath_list_btn = "//div[@class='move-tab']/ul/li/" + \
-                         "button[@data-url='#move-cont2']"
-        e_btn = try_finding_element_by_xpath(
-            crawler.webdriver, xpath=xpath_list_btn
-        )
-        time.sleep(1)
-        str_html = crawler.webdriver.page_source
+        time.sleep(2)
         data_length = crawler.webdriver.execute_script(
             "return route_table.data().length"
         )
         data_length = int(data_length)
-        list_row = []
+        list_s_row = []
         for i in range(data_length):
             row = crawler.webdriver.execute_script(
                 f"return route_table.data()[{i}];"
             )
-            LOGGER.debug(f"type of row: {type(row)}")
-            LOGGER.debug(f"contents of row: {row}")
-
-
-        route_table = crawler.webdriver.execute_script("return route_table.data()[0];")
-        LOGGER.info(route_table)
-        df = self._parse_table(str_html)
-        LOGGER.debug(f"table: {df}")
-
-    def _parse_table(self, html):
-        soup = BeautifulSoup(html, 'html5lib')
-        soup_div = soup.find('div', {'id': 'move-cont2'})
-        soup_table = soup_div.find('table', {'id': 'DataTables_Table_0'})
-        soup_body = soup_table.find('tbody')
-        list_soup_tr = soup_body.find_all('tr', {'id': 'patient'})
-        list_soup_td = soup_body.find_all('td', {'class': 'tdl'})
-        list_s_row = []
-        for soup_tr, soup_td in zip(list_soup_tr, list_soup_td):
-            s_row = pd.Series(dtype=object)
-            list_soup_td = soup_tr.find_all('td')
-            s_row['no'] = list_soup_td[0].find('p').text
-            s_row['patient_id'] = list_soup_td[1].text
-            s_row['infection_route'] = list_soup_td[2].text
-            s_row['confirmation_date'] = list_soup_td[3].text
-            s_row['residence'] = list_soup_td[4].text
-            s_row['containment_facility'] = list_soup_td[5].text
-            s_row['routes'] = soup_td.text.strip()
+            s_row = self._parse_row(row)
             list_s_row.append(s_row)
         df = pd.concat([s_row.to_frame().T for s_row in list_s_row],
                        ignore_index=True)
         return df
+
+    def _parse_row(self, row: list):
+        s_row = pd.Series(dtype=object)
+        s_row['patient_id'] = row[1]
+        s_row['infection_route'] = row[2]
+        s_row['confirmation_date'] = row[3]
+        s_row['residence'] = row[4]
+        s_row['containment_facility'] = row[5]
+        soup = BeautifulSoup(row[0], 'html5lib')
+        s_row['routes'] = soup.text.strip()
+        return s_row
